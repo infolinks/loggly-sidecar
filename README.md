@@ -13,14 +13,15 @@ Extend this image by creating your own image:
         |
         +-- Dockerfile
         |
-        +-- fluent.conf
+        +-- my-fluent.conf
 
-Here's an example `Dockerfile`:
+Here's the `Dockerfile`:
 
     FROM infolinks/loggly-sidecar:v3
     MAINTAINER Arik Kfir <arik@infolinks.com>
+    COPY my-fluent.conf /fluentd/etc/conf.d/
 
-And here's an example `fluent.conf` file collecting `Apache` access logs:
+And here's the `my-fluent.conf` file collecting `Apache` access logs:
 
     <source>
         @type tail
@@ -40,11 +41,11 @@ And here's an example `fluent.conf` file collecting `Apache` access logs:
         flush_interval 10s
     </match>
 
-Note how the loggly token is not embedded in the `fluentd.conf` file,
-but taken from the environment variable `LOGGLY_TOKEN`, which will be
-provided from the Kubernetes manifest below.
+Note how the loggly token is not embedded in the Fluent configuration
+file, but taken from the environment variable `LOGGLY_TOKEN`, which will
+be provided from the Kubernetes manifest below.
 
-Build it using:
+Build the image using:
 
     docker build -t my-loggly-sidecar .
 
