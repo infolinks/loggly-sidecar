@@ -40,11 +40,6 @@ Here's an example Pod using this container:
                   readOnly: true
                 - name: logs
                   mountPath: /var/log/my-pod
-            - name: fluentd
-              mountPath: /fluentd/etc/conf.d
-              readOnly: true
-            - name: logs
-              mountPath: /var/log/my-pod
 
           volumes:
             # shared logs volume mounted by both containers - one writes
