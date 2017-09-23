@@ -7,7 +7,49 @@ to collect log files from its sibling containers.
 
 ## Usage
 
-Here's an example Pod using this container:
+Extend this image by creating your own image:
+
+    my-loggly-sidecar
+        |
+        +-- Dockerfile
+        |
+        +-- fluent.conf
+
+Here's an example `Dockerfile`:
+
+    FROM infolinks/loggly-sidecar:v3
+    MAINTAINER Arik Kfir <arik@infolinks.com>
+
+And here's an example `fluent.conf` file collecting `Apache` access logs:
+
+    <source>
+        @type tail
+        path /var/log/access_log
+        pos_file /var/log/access_log.pos
+        <parse>
+            @type apache2
+        </parse>
+        tag httpd.access_log
+    </source>
+
+    <match httpd.access_log>
+        @type loggly_buffered
+        loggly_url https://logs-01.loggly.com/bulk/#{ENV['LOGGLY_TOKEN']}/tag/httpd.access_log,httpd
+        buffer_type file
+        buffer_path /var/log/access_log.buffer
+        flush_interval 10s
+    </match>
+
+Note how the loggly token is not embedded in the `fluentd.conf` file,
+but taken from the environment variable `LOGGLY_TOKEN`, which will be
+provided from the Kubernetes manifest below.
+
+Build it using:
+
+    docker build -t my-loggly-sidecar .
+
+And here's an example Kubernetes deployment manifest putting it all
+together:
 
     apiVersion: apps/v1beta1
     kind: Deployment
@@ -20,45 +62,22 @@ Here's an example Pod using this container:
             app: my-pod
         spec:
           containers:
-
-            # this container generates log files under "/var/log/my-pod":
-            - name: my-container1
-              image: my/container:latest
+            - name: httpd
+              image: httpd
               volumeMounts:
                 - name: logs
-                  mountPath: /var/log/my-pod
-
-            # this is the sidecar:
+                  mountPath: /var/log/httpd
             - name: loggly
-              image: infolinks/loggly-sidecar
+              image: my-loggly-sidecar
               env:
                 - name: LOGGLY_TOKEN
                   value: <your_loggly_token_here>
               volumeMounts:
-                - name: fluentd
-                  mountPath: /fluentd/etc/conf.d
-                  readOnly: true
                 - name: logs
-                  mountPath: /var/log/my-pod
-
+                  mountPath: /var/log/httpd
           volumes:
-            # shared logs volume mounted by both containers - one writes
-            # logs into it, and the sidecar reads logs from it
             - name: logs
               emptyDir: {}
-
-            # volume mounted by the sidecar - this volume should contain
-            # fluentd configurations for reading the logs at /var/log/my-pod
-            # usually you would want this to be populated from a configmap
-            # so you could reconfigure fluentd, but you could use any
-            # technique you want, as long as the fluentd "conf" files
-            # are in this volume.
-            # alternatively, you could create your own Docker image that
-            # extends the "loggly-sidecar" image, and import your conf
-            # files to "/fluentd/etc/conf.d" yourself (in such a case,
-            # a volume mount is not necessary)
-            - name: fluentd
-              ...
 
 ## Contributions
 
